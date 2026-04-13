@@ -1,5 +1,9 @@
 # 🚨 Frigate Telegram Notify 🚀
 
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![version](https://img.shields.io/badge/version-v1.0.0-blue.svg)]()
+[![maintainer](https://img.shields.io/badge/maintainer-Salvatore_Lentini_--_DomHouse.it-green.svg)](https://www.domhouse.it)
+
 Un Blueprint per Home Assistant per ricevere notifiche Telegram (Snapshot e Clip) direttamente da Frigate. 
 
 ## ✨ Caratteristiche Principali
