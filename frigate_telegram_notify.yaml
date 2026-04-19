@@ -1,0 +1,144 @@
+blueprint:
+  name: Frigate - Telegram Notification (Ultimate Snello)
+  description: Il motore originale infallibile, con ID multipli, delay video, TESTO PERSONALIZZABILE e interruttore per il silenzioso.
+  domain: automation
+  input:
+    camera:
+      name: Frigate Camera
+      description: Il nome della camera definito in frigate (/conf.yml).
+    target_chat:
+      name: Target (Multipli supportati)
+      description: 'Inserisci uno o più chat_id separati da virgola (es. 123456, 789012).'
+    custom_caption:
+      name: Testo della Notifica
+      description: "Il messaggio da inviare con la foto. Puoi usare {{ camera_name }} o {{ label }}."
+      default: "🚨 Rilevato {{ label }} dalla telecamera: {{ camera_name }}"
+    base_url:
+      name: URL Base Home Assistant
+      description: "Il tuo indirizzo di Home Assistant (es. http://192.168.1.246:8123)."
+      default: ''
+    send_snapshot:
+      name: Invia Foto (Snapshot)
+      default: false
+      selector:
+        boolean: {}
+    send_clip:
+      name: Invia Video (Clip)
+      default: false
+      selector:
+        boolean: {}
+    silent_notification:
+      name: Notifica Silenziosa
+      description: "Se attivo, invia la notifica senza suono."
+      default: false
+      selector:
+        boolean: {}
+    zone_filter:
+      name: (Optional) Zone Filter
+      default: false
+      selector:
+        boolean: {}
+    zones:
+      name: (Optional) Trigger Zones
+      default: []
+      selector:
+        object: {}
+    labels:
+      name: (Optional) Trigger Objects
+      default: []
+      selector:
+        object: {}
+    presence_filter:
+      name: (Optional) Presence Filter
+      default: ''
+      selector:
+        entity: {}
+
+mode: single
+max_exceeded: silent
+
+trigger:
+  platform: mqtt
+  topic: frigate/events
+  payload: !input 'camera'
+  value_template: "{{ value_json['after']['camera'] }}"
+
+variables:
+  id: "{{ trigger.payload_json['after']['id'] }}"
+  camera: "{{ trigger.payload_json['after']['camera'] }}"
+  camera_name: "{{ camera | replace('_', ' ') | title }}"
+  target_chat: !input 'target_chat'
+  chat_id_list: "{{ (target_chat | string).split(',') | map('trim') | list }}"
+  object: "{{ trigger.payload_json['after']['label'] }}"
+  label: "{{ object | title }}"
+  entered_zones: "{{ trigger.payload_json['after']['entered_zones'] }}"
+  type: "{{ trigger.payload_json['type'] }}"
+  base_url: !input 'base_url'
+  caption_text: !input 'custom_caption'
+  is_silent: !input 'silent_notification'
+
+  zone_only: !input 'zone_filter'
+  input_zones: !input 'zones'
+  zones: "{{ input_zones | list }}"
+  input_labels: !input 'labels'
+  labels: "{{ input_labels | list }}"
+  presence_entity: !input 'presence_filter'
+  input_send_snapshot: !input 'send_snapshot'
+  input_send_clip: !input 'send_clip'
+
+condition:
+- "{{ type != 'end' }}"
+- "{{ not zone_only or entered_zones|length > 0 }}"
+- "{{ not zones|length or zones|select('in', entered_zones)|list|length > 0 }}"
+- "{{ not labels|length or object in labels }}"
+- "{{ not presence_entity or not is_state(presence_entity, 'home') }}"
+
+action:
+# 1. INVIO FOTO
+- if:
+    - condition: template
+      value_template: "{{ input_send_snapshot }}"
+  then:
+    - repeat:
+        for_each: "{{ chat_id_list }}"
+        sequence:
+          - service: telegram_bot.send_photo
+            data:
+              chat_id: "{{ repeat.item }}"
+              disable_notification: "{{ is_silent }}"
+              caption: "{{ caption_text }}"
+              url: "{{base_url}}/api/frigate/notifications/{{id}}/snapshot.jpg"
+
+# 2. ATTESA E INVIO VIDEO (IL CICLO CHE NON SBAGLIA MAI)
+- if:
+    - condition: template
+      value_template: "{{ input_send_clip }}"
+  then:
+    # Il ciclo continua a "girare" e aspettare finché non legge la parola "end"
+    - repeat:
+        sequence:
+          - wait_for_trigger:
+              - platform: mqtt
+                topic: frigate/events
+                payload: "{{ id }}"
+                value_template: "{{ value_json['after']['id'] }}"
+            timeout:
+              minutes: 5
+            continue_on_timeout: false
+        until:
+          - condition: template
+            value_template: "{{ wait.trigger.payload_json['type'] == 'end' }}"
+
+    # RITARDO DI SICUREZZA PER IL SALVATAGGIO FILE (10 SECONDI)
+    - delay:
+        seconds: 10
+
+    - repeat:
+        for_each: "{{ chat_id_list }}"
+        sequence:
+          - service: telegram_bot.send_video
+            data:
+              chat_id: "{{ repeat.item }}"
+              disable_notification: "{{ is_silent }}"
+              caption: "📹 Video: {{ camera_name }}"
+              url: "{{base_url}}/api/frigate/notifications/{{id}}/{{camera}}/clip.mp4"
