@@ -1,6 +1,13 @@
 blueprint:
-  name: Frigate - Telegram Notification (Ultimate Snello)
-  description: Il motore originale infallibile, con ID multipli, delay video, TESTO PERSONALIZZABILE e interruttore per il silenzioso.
+  name: Frigate - Telegram Notify
+  description: >
+  Automazione definitiva per inviare notifiche Telegram (foto e video) da Frigate.
+
+  ⚙️ **Versione**: 1.0.0
+
+  👨‍💻 **Sviluppatore**: Salvatore Lentini
+
+  🌐 **Sito Web**: [www.domhouse.it](https://domhouse.it/frigate-telegram-notify-invia-media-da-frigate-a-telegram/)
   domain: automation
   input:
     camera:
