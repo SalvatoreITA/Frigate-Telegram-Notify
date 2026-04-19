@@ -1,13 +1,13 @@
 blueprint:
   name: Frigate - Telegram Notify
   description: >
-  Automazione definitiva per inviare notifiche Telegram (foto e video) da Frigate.
+    Automazione definitiva per inviare notifiche Telegram (foto e video) da Frigate.
 
-  ⚙️ **Versione**: 1.0.0
+    ⚙️ **Versione**: 1.0.0
 
-  👨‍💻 **Sviluppatore**: Salvatore Lentini
+    👨‍💻 **Sviluppatore**: Salvatore Lentini
 
-  🌐 **Sito Web**: [www.domhouse.it](https://domhouse.it/frigate-telegram-notify-invia-media-da-frigate-a-telegram/)
+    🌐 **Sito Web**: [www.domhouse.it](https://domhouse.it/frigate-telegram-notify-invia-media-da-frigate-a-telegram/)
   domain: automation
   input:
     camera:
