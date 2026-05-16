@@ -30,7 +30,7 @@ Quando crei l'automazione da questo blueprint, fai attenzione a questi due campi
 
 Importa il Blueprint sul tuo Home Assistant tramite il seguente link:
 
-[![Importa Blueprint in Home Assistant](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/SalvatoreITA/domhouse-octopus-card/main/blueprints/octopus_tracker_luce.yaml)
+[![Importa Blueprint in Home Assistant](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/SalvatoreITA/Frigate-Telegram-Notify/refs/heads/main/frigate_telegram_notify.yaml)
 
 ## ☕ Supporta il Progetto
 
