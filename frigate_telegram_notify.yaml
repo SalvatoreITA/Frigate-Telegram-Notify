@@ -3,27 +3,52 @@ blueprint:
   description: >
     Automazione definitiva per inviare notifiche Telegram (foto e video) da Frigate.
 
-    ⚙️ **Versione**: 1.0.0
+    ⚙️ **Versione**: 1.1.0
 
     👨‍💻 **Sviluppatore**: Salvatore Lentini
 
     🌐 **Sito Web**: [www.domhouse.it](https://domhouse.it/frigate-telegram-notify-invia-media-da-frigate-a-telegram/)
+
+
+    📋 **CHANGELOG 1.1.0**
+
+    - FIX: i filtri Zone e Oggetti non funzionavano se l'input era una stringa
+      (venivano spezzati carattere per carattere). Ora accettano sia una lista
+      sia testo separato da virgola, e il confronto è case-insensitive.
+
+    - FIX: con la sola foto attiva si ricevevano notifiche duplicate ad ogni
+      update dello stesso evento. Ora l'automazione attende la fine dell'evento
+      anche in modalità solo-foto, inviando una sola notifica.
+
+    - Selettori migliorati: Zone/Oggetti ora si inseriscono come elenco,
+      URL Base evidenziato come campo obbligatorio.
+
+    - Variabile 'object' rinominata in 'obj_label' per non ombreggiare i builtin.
   domain: automation
   input:
     camera:
-      name: Frigate Camera
-      description: Il nome della camera definito in frigate (/conf.yml).
+      name: Camera Frigate
+      description: "Il nome della camera come definito in Frigate (config.yml), es. vialetto."
+      selector:
+        text: {}
     target_chat:
       name: Target (Multipli supportati)
-      description: 'Inserisci uno o più chat_id separati da virgola (es. 123456, 789012).'
+      description: "Uno o più chat_id separati da virgola (es. 123456, 789012)."
+      selector:
+        text: {}
     custom_caption:
       name: Testo della Notifica
       description: "Il messaggio da inviare con la foto. Puoi usare {{ camera_name }} o {{ label }}."
       default: "🚨 Rilevato {{ label }} dalla telecamera: {{ camera_name }}"
     base_url:
-      name: URL Base Home Assistant
-      description: "Il tuo indirizzo di Home Assistant (es. http://192.168.1.246:8123)."
+      name: URL Base Home Assistant (OBBLIGATORIO)
+      description: >
+        Indirizzo di Home Assistant raggiungibile da HA stesso per scaricare i media,
+        es. http://192.168.1.246:8123 — SENZA / finale.
+        Se lasciato vuoto, l'invio di foto e video fallisce.
       default: ''
+      selector:
+        text: {}
     send_snapshot:
       name: Invia Foto (Snapshot)
       default: false
@@ -41,22 +66,32 @@ blueprint:
       selector:
         boolean: {}
     zone_filter:
-      name: (Optional) Zone Filter
+      name: (Opzionale) Richiedi almeno una zona
+      description: "Se attivo, notifica solo se l'oggetto è entrato in una qualsiasi zona."
       default: false
       selector:
         boolean: {}
     zones:
-      name: (Optional) Trigger Zones
+      name: (Opzionale) Zone che attivano la notifica
+      description: >
+        Lascia vuoto per ignorare il filtro. Inserisci i nomi delle zone
+        esattamente come in Frigate, una per riga (o separate da virgola).
       default: []
       selector:
-        object: {}
+        text:
+          multiple: true
     labels:
-      name: (Optional) Trigger Objects
+      name: (Opzionale) Oggetti che attivano la notifica
+      description: >
+        Lascia vuoto per notificare qualsiasi oggetto. Es: person, car, dog.
+        Uno per riga (o separati da virgola).
       default: []
       selector:
-        object: {}
+        text:
+          multiple: true
     presence_filter:
-      name: (Optional) Presence Filter
+      name: (Opzionale) Filtro Presenza
+      description: "Se l'entità scelta è 'home', la notifica NON viene inviata. Lascia vuoto per disattivare."
       default: ''
       selector:
         entity: {}
@@ -65,19 +100,19 @@ mode: single
 max_exceeded: silent
 
 trigger:
-  platform: mqtt
-  topic: frigate/events
-  payload: !input 'camera'
-  value_template: "{{ value_json['after']['camera'] }}"
+  - platform: mqtt
+    topic: frigate/events
+    payload: !input 'camera'
+    value_template: "{{ value_json['after']['camera'] }}"
 
 variables:
   id: "{{ trigger.payload_json['after']['id'] }}"
   camera: "{{ trigger.payload_json['after']['camera'] }}"
   camera_name: "{{ camera | replace('_', ' ') | title }}"
   target_chat: !input 'target_chat'
-  chat_id_list: "{{ (target_chat | string).split(',') | map('trim') | list }}"
-  object: "{{ trigger.payload_json['after']['label'] }}"
-  label: "{{ object | title }}"
+  chat_id_list: "{{ (target_chat | string).split(',') | map('trim') | reject('eq', '') | list }}"
+  obj_label: "{{ trigger.payload_json['after']['label'] }}"
+  label: "{{ obj_label | title }}"
   entered_zones: "{{ trigger.payload_json['after']['entered_zones'] }}"
   type: "{{ trigger.payload_json['type'] }}"
   base_url: !input 'base_url'
@@ -86,66 +121,86 @@ variables:
 
   zone_only: !input 'zone_filter'
   input_zones: !input 'zones'
-  zones: "{{ input_zones | list }}"
+  # Accetta sia una lista (selettore) sia una stringa "a, b" (compatibilità)
+  zones: >-
+    {{ (input_zones.split(',') | map('trim') | reject('eq', '') | list)
+       if (input_zones is string) else (input_zones | list) }}
   input_labels: !input 'labels'
-  labels: "{{ input_labels | list }}"
+  labels: >-
+    {{ (input_labels.split(',') | map('trim') | reject('eq', '') | list)
+       if (input_labels is string) else (input_labels | list) }}
   presence_entity: !input 'presence_filter'
   input_send_snapshot: !input 'send_snapshot'
   input_send_clip: !input 'send_clip'
 
 condition:
-- "{{ type != 'end' }}"
-- "{{ not zone_only or entered_zones|length > 0 }}"
-- "{{ not zones|length or zones|select('in', entered_zones)|list|length > 0 }}"
-- "{{ not labels|length or object in labels }}"
-- "{{ not presence_entity or not is_state(presence_entity, 'home') }}"
+  # Ignora gli eventi di tipo 'end' come innesco (la fine la intercetta il wait più sotto)
+  - condition: template
+    value_template: "{{ type != 'end' }}"
+  # Richiedi una zona qualsiasi, se l'opzione è attiva
+  - condition: template
+    value_template: "{{ not zone_only or entered_zones | length > 0 }}"
+  # Filtro zone specifiche (case-insensitive)
+  - condition: template
+    value_template: >-
+      {{ zones | length == 0
+         or (zones | map('lower') | select('in', entered_zones | map('lower') | list) | list | length > 0) }}
+  # Filtro oggetti (case-insensitive)
+  - condition: template
+    value_template: >-
+      {{ labels | length == 0
+         or (obj_label | lower) in (labels | map('lower') | list) }}
+  # Filtro presenza
+  - condition: template
+    value_template: "{{ not presence_entity or not is_state(presence_entity, 'home') }}"
 
 action:
-# 1. INVIO FOTO
-- if:
-    - condition: template
-      value_template: "{{ input_send_snapshot }}"
-  then:
-    - repeat:
-        for_each: "{{ chat_id_list }}"
-        sequence:
-          - service: telegram_bot.send_photo
-            data:
-              chat_id: "{{ repeat.item }}"
-              disable_notification: "{{ is_silent }}"
-              caption: "{{ caption_text }}"
-              url: "{{base_url}}/api/frigate/notifications/{{id}}/snapshot.jpg"
+  # 1. INVIO FOTO (immediato, al primo evento che supera i filtri)
+  - if:
+      - condition: template
+        value_template: "{{ input_send_snapshot }}"
+    then:
+      - repeat:
+          for_each: "{{ chat_id_list }}"
+          sequence:
+            - service: telegram_bot.send_photo
+              data:
+                chat_id: "{{ repeat.item }}"
+                disable_notification: "{{ is_silent }}"
+                caption: "{{ caption_text }}"
+                url: "{{ base_url }}/api/frigate/notifications/{{ id }}/snapshot.jpg"
 
-# 2. ATTESA E INVIO VIDEO (IL CICLO CHE NON SBAGLIA MAI)
-- if:
-    - condition: template
-      value_template: "{{ input_send_clip }}"
-  then:
-    # Il ciclo continua a "girare" e aspettare finché non legge la parola "end"
-    - repeat:
-        sequence:
-          - wait_for_trigger:
-              - platform: mqtt
-                topic: frigate/events
-                payload: "{{ id }}"
-                value_template: "{{ value_json['after']['id'] }}"
-            timeout:
-              minutes: 5
-            continue_on_timeout: false
-        until:
+  # 2. ATTESA FINE EVENTO
+  #    Serve sia per inviare il clip (disponibile solo a fine evento),
+  #    sia per de-duplicare: mentre aspettiamo, gli update dello stesso
+  #    evento vengono scartati (mode: single). Così, anche in solo-foto,
+  #    parte una sola notifica per evento.
+  - if:
+      - condition: template
+        value_template: "{{ input_send_snapshot or input_send_clip }}"
+    then:
+      - wait_for_trigger:
+          - platform: mqtt
+            topic: frigate/events
+            value_template: "{{ value_json['after']['id'] == id and value_json['type'] == 'end' }}"
+        timeout:
+          minutes: 5
+        continue_on_timeout: true
+
+      # 3. INVIO VIDEO (solo se l'evento è davvero finito entro il timeout)
+      - if:
           - condition: template
-            value_template: "{{ wait.trigger.payload_json['type'] == 'end' }}"
-
-    # RITARDO DI SICUREZZA PER IL SALVATAGGIO FILE (10 SECONDI)
-    - delay:
-        seconds: 10
-
-    - repeat:
-        for_each: "{{ chat_id_list }}"
-        sequence:
-          - service: telegram_bot.send_video
-            data:
-              chat_id: "{{ repeat.item }}"
-              disable_notification: "{{ is_silent }}"
-              caption: "📹 Video: {{ camera_name }}"
-              url: "{{base_url}}/api/frigate/notifications/{{id}}/{{camera}}/clip.mp4"
+            value_template: "{{ input_send_clip and wait.trigger is not none }}"
+        then:
+          # Ritardo di sicurezza per il salvataggio del file su disco
+          - delay:
+              seconds: 10
+          - repeat:
+              for_each: "{{ chat_id_list }}"
+              sequence:
+                - service: telegram_bot.send_video
+                  data:
+                    chat_id: "{{ repeat.item }}"
+                    disable_notification: "{{ is_silent }}"
+                    caption: "📹 Video: {{ camera_name }}"
+                    url: "{{ base_url }}/api/frigate/notifications/{{ id }}/{{ camera }}/clip.mp4"
