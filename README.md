@@ -28,10 +28,6 @@ Quando crei l'automazione da questo blueprint, fai attenzione a questi due campi
 
 ## 📥 Installazione
 
-Importa il Blueprint sul tuo Home Assistant tramite il seguente link:
-
-[![Importa Blueprint in Home Assistant](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/SalvatoreITA/Frigate-Telegram-Notify/refs/heads/main/frigate_telegram_notify.yaml)
-
 ### Metodo 1 · Un clic
 
 Richiede che tu abbia [My Home Assistant](https://my.home-assistant.io/) configurato sulla tua istanza.
