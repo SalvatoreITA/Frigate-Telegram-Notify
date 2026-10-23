@@ -32,6 +32,22 @@ Importa il Blueprint sul tuo Home Assistant tramite il seguente link:
 
 [![Importa Blueprint in Home Assistant](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/SalvatoreITA/Frigate-Telegram-Notify/refs/heads/main/frigate_telegram_notify.yaml)
 
+### Metodo 1 · Un clic
+
+Richiede che tu abbia [My Home Assistant](https://my.home-assistant.io/) configurato sulla tua istanza.
+
+[![Apri la tua istanza Home Assistant e importa questo blueprint.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/SalvatoreITA/Frigate-Telegram-Notify/refs/heads/main/frigate_telegram_notify.yaml)
+
+### Metodo 2 · Manuale (funziona sempre)
+
+1. In Home Assistant vai su **Impostazioni → Automazioni e scene → Blueprint**
+2. In basso a destra, **Importa blueprint**
+3. Incolla questo URL e conferma:
+
+```
+https://raw.githubusercontent.com/SalvatoreITA/Frigate-Telegram-Notify/refs/heads/main/frigate_telegram_notify.yaml
+```
+
 ## ☕ Supporta il Progetto
 
 Ogni piccolo supporto fa un'enorme differenza: mi aiuta a mantenere vivo l'entusiasmo e mi stimola a creare e condividere nuove soluzioni per la community. Grazie di cuore per il tuo aiuto! 🚀
